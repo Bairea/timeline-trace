@@ -172,6 +172,37 @@ def export_csv_actual(actual_section: list[list]) -> str:
     return "\ufeff" + buf.getvalue()
 
 
+# 各表中应当是「数字」的列（按表头名匹配）。
+#
+# rows_actual / rows_template 为 CSV 输出方便，把数值统一 str() 化了。
+# 但 XLSX 里若原样写入字符串，单元格会变成文本，Excel 的 SUM() 直接
+# 返回 0——而「对每段时长求和」正是这套导出的主要用途。因此写入
+# XLSX 时按列名还原成 int。
+NUMERIC_COLS = {
+    "duration_min", "delta_start_min", "delta_dur_min",
+    "template_duration_min",
+}
+# 这三列留空代表「不适用」（如未记录块的 delta），应保持空白而非 0
+_EMPTY_OK = {"delta_start_min", "delta_dur_min"}
+
+
+def _coerce_row(row: list, header: list[str]) -> list:
+    """把该转数字的列转成 int，空值按语义留空或置 None。"""
+    out = []
+    for h, v in zip(header, row):
+        if h not in NUMERIC_COLS:
+            out.append(v)
+            continue
+        if v is None or v == "":
+            out.append(None)
+            continue
+        try:
+            out.append(int(v))
+        except (TypeError, ValueError):
+            out.append(v)   # 真出现非数值就原样保留，不吞掉
+    return out
+
+
 def export_xlsx(actual_section: list[list],
                 template_section: list[list] | None = None,
                 daily_summary: list[list] | None = None,
@@ -182,12 +213,12 @@ def export_xlsx(actual_section: list[list],
     ws.title = "实际明细"
     ws.append(ACTUAL_HEADER)
     for r in actual_section:
-        ws.append(r)
+        ws.append(_coerce_row(r, ACTUAL_HEADER))
 
     ws2 = wb.create_sheet("模板对照")
     ws2.append(TEMPLATE_HEADER)
     for r in (template_section or []):
-        ws2.append(r)
+        ws2.append(_coerce_row(r, TEMPLATE_HEADER))
 
     ws3 = wb.create_sheet("日汇总")
     ws3.append(DAILY_HEADER)

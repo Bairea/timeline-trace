@@ -207,3 +207,84 @@ def test_xlsx_empty_is_valid():
     wb = load_workbook(io.BytesIO(data))
     assert wb["实际明细"].max_row == 1
     assert wb["模板对照"].max_row == 1
+
+
+# ---------- XLSX 数值列必须是数字（否则 Excel SUM 返回 0）----------
+
+def _xlsx_of(tpls, acts, date="2026-09-20"):
+    res = compare_day(tpls, acts)
+    data = export_xlsx(rows_actual(date, res, acts), rows_template(date, res))
+    return load_workbook(io.BytesIO(data))
+
+
+def test_xlsx_duration_is_numeric_not_text():
+    """duration_min 必须是数字单元格，否则 Excel 里 SUM() 直接是 0。"""
+    tpls = [BlockLike(720, 765, "午饭与午休")]
+    acts = [BlockLike(720, 750, "午饭")]
+    ws = _xlsx_of(tpls, acts)["实际明细"]
+    hdr = [c.value for c in ws[1]]
+    v = ws.cell(row=2, column=hdr.index("duration_min") + 1).value
+    assert isinstance(v, int), f"duration_min 应为 int，实际是 {type(v).__name__}"
+    assert v == 30
+
+
+def test_xlsx_duration_sum_equals_total_recorded():
+    """三块相加必须等于当日总时长——这正是导出的核心用途。"""
+    tpls = [BlockLike(720, 765, "午饭与午休"), BlockLike(765, 1020, "工作")]
+    acts = [BlockLike(720, 750, "午饭"), BlockLike(780, 840, "干活"),
+            BlockLike(1270, 1290, "短视频")]
+    ws = _xlsx_of(tpls, acts)["实际明细"]
+    hdr = [c.value for c in ws[1]]
+    i = hdr.index("duration_min")
+    total = sum(r[i].value for r in ws.iter_rows(min_row=2))
+    assert total == 30 + 60 + 20 == 110
+
+
+def test_xlsx_template_duration_is_numeric():
+    tpls = [BlockLike(390, 420, "早操"), BlockLike(1360, 1830, "睡觉")]
+    ws = _xlsx_of(tpls, [])["模板对照"]
+    hdr = [c.value for c in ws[1]]
+    i = hdr.index("template_duration_min")
+    vals = [r[i].value for r in ws.iter_rows(min_row=2)]
+    assert all(isinstance(v, int) for v in vals), vals
+    assert 30 in vals and 470 in vals
+
+
+def test_xlsx_delta_columns_numeric_when_present():
+    tpls = [BlockLike(720, 765, "午饭与午休")]
+    acts = [BlockLike(720, 750, "午饭")]
+    ws = _xlsx_of(tpls, acts)["实际明细"]
+    hdr = [c.value for c in ws[1]]
+    ds = ws.cell(row=2, column=hdr.index("delta_start_min") + 1).value
+    dd = ws.cell(row=2, column=hdr.index("delta_dur_min") + 1).value
+    assert isinstance(ds, int) and isinstance(dd, int)
+    assert (ds, dd) == (0, -15)
+
+
+def test_xlsx_missing_delta_stays_blank_not_zero():
+    """未记录块的 delta 无意义，必须留空；填 0 会被误当作「完全对齐」。"""
+    tpls = [BlockLike(390, 420, "早操")]
+    ws = _xlsx_of(tpls, [])["模板对照"]
+    hdr = [c.value for c in ws[1]]
+    for col in ("delta_start_min", "delta_dur_min"):
+        v = ws.cell(row=2, column=hdr.index(col) + 1).value
+        assert v is None, f"{col} 应为空，实际 {v!r}"
+
+
+def test_csv_still_uses_plain_strings():
+    """CSV 侧不能因为 XLSX 改了就被波及——时间仍是 HH:MM 字符串。"""
+    tpls = [BlockLike(720, 765, "午饭与午休")]
+    acts = [BlockLike(720, 750, "午饭")]
+    res = compare_day(tpls, acts)
+    body = export_csv_actual(rows_actual("2026-09-20", res, acts))
+    assert "12:00" in body and "12:30" in body
+    assert '"30"' not in body      # CSV 里不该冒出带引号的数字
+
+
+def test_csv_empty_delta_is_blank_string():
+    """CSV 里空值必须是空串，不能变成 'None'。"""
+    tpls = [BlockLike(390, 420, "早操")]
+    res = compare_day(tpls, [])
+    rows = rows_template("2026-09-20", res)
+    assert rows, "应当有未记录模板块"
+    assert "None" not in ",".join(rows[0])
