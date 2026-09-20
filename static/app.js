@@ -10,10 +10,21 @@
 'use strict';
 
 // ---------- 常量 ----------
-const PX_PER_MIN = 0.75;
 const DAY_MIN = 1440;
 const SNAP_MIN = 5;              // 拖动吸附粒度
 const REWARD_UNDO_MS = 5000;
+
+// 缩放用「倍率」语义：1 = 基准密度。基准值是每小时 72px，
+// 即 24 小时铺开 1728px。
+//
+// 这里曾经出过一个单位错误：state.zoom 被当成「每小时像素数」用，
+// 但默认值写的是 1（倍率语义），于是轴高算成 1×24 = 24px，
+// 24 小时全挤成一坨。现在统一为倍率，像素换算只在 hourPx() 里做。
+const BASE_HOUR_PX = 72;
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 3;
+const ZOOM_STEPS = [0.5, 0.75, 1, 1.25, 1.5, 2, 3];
+const ZOOM_DEFAULT = 1;
 
 // ---------- 状态 ----------
 const state = {
@@ -25,6 +36,7 @@ const state = {
   deleted: null,       // { id, name, timer }
   selectedId: null,
   drag: null,
+  zoom: ZOOM_DEFAULT,  // 倍率，1 = BASE_HOUR_PX
 };
 
 // ---------- 工具 ----------
@@ -45,6 +57,53 @@ function snap(m) {
 }
 
 function $(id) { return document.getElementById(id); }
+
+/** 当前每小时占多少像素。几何换算的唯一入口。 */
+function hourPx() { return BASE_HOUR_PX * state.zoom; }
+
+/** 当前每分钟占多少像素。 */
+function pxPerMin() { return hourPx() / 60; }
+
+/** 分钟数 → 像素 */
+function px(minutes) { return minutes * pxPerMin(); }
+
+/**
+ * 应用缩放：把轴高写进 CSS 变量，并重排所有依赖几何的元素。
+ *
+ * 轴高 = 24 小时 × 每小时像素。JS 是唯一计算方，CSS 只消费。
+ *
+ * 注意 renderTemplate / renderActual 内部各自会清空并重建轴内容
+ * （含小时线），所以这里不再单独调 renderHourLines——重复清空虽然
+ * 结果正确，但会让"谁负责清轴"这件事变得含糊。
+ */
+function applyZoom() {
+  const axisH = hourPx() * 24;
+  document.documentElement.style.setProperty('--axis-h', `${axisH}px`);
+  document.documentElement.style.setProperty('--hour-h', `${hourPx()}px`);
+
+  const label = $('zoomLabel');
+  if (label) label.textContent = `${+state.zoom.toFixed(3)}×`;
+
+  // 缩放不重新拉数据，只重排已有内容
+  renderRuler();
+  renderTemplate(state.tplBlocks);
+  renderActual(state.rows, state.actualRows);
+  document.querySelectorAll('#actAxis .block').forEach(attachBlockEvents);
+  renderNowLine();
+}
+
+function setZoom(z) {
+  state.zoom = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+  applyZoom();
+}
+
+function stepZoom(dir) {
+  const i = ZOOM_STEPS.findIndex(v => v >= state.zoom - 1e-6);
+  const next = dir > 0
+    ? ZOOM_STEPS[Math.min(ZOOM_STEPS.length - 1, (i < 0 ? 0 : i) + 1)]
+    : ZOOM_STEPS[Math.max(0, (i < 0 ? ZOOM_STEPS.length : i) - 1)];
+  setZoom(next);
+}
 
 // ---------- API 层 ----------
 const api = {
@@ -77,14 +136,15 @@ const api = {
 function renderRuler() {
   const ruler = $('ruler');
   ruler.innerHTML = '';
+  // 轴太密时逐小时标会糊，按实际像素密度决定标注间隔
+  const stepH = hourPx() < 48 ? 3 : hourPx() < 96 ? 2 : 1;
   for (let h = 0; h <= 24; h++) {
     const d = document.createElement('div');
-    d.className = 'tick';
-    d.style.top = `${h * 60 * PX_PER_MIN}px`;
+    d.className = 'tick' + (h % stepH === 0 ? '' : ' minor');
+    d.style.top = `${px(h * 60)}px`;
     d.textContent = `${String(h).padStart(2, '0')}:00`;
     ruler.appendChild(d);
   }
-  // 右栏刻度
   const r2 = document.querySelectorAll('.hour-ruler')[1];
   if (r2) r2.innerHTML = ruler.innerHTML;
 }
@@ -93,9 +153,19 @@ function renderHourLines(axis) {
   axis.innerHTML = '';
   for (let h = 1; h < 24; h++) {
     const l = document.createElement('div');
-    l.className = 'hour-line';
-    l.style.top = `${h * 60 * PX_PER_MIN}px`;
+    const onHour = h % 3 === 0;               // 每 3 小时一条重线，便于定位
+    l.className = 'hour-line' + (onHour ? ' major' : '');
+    l.style.top = `${px(h * 60)}px`;
     axis.appendChild(l);
+  }
+  // 半小时的浅虚线，只在足够放大时出现，提供中间参照
+  if (hourPx() >= 96) {
+    for (let h = 0; h < 24; h++) {
+      const l = document.createElement('div');
+      l.className = 'half-line';
+      l.style.top = `${px(h * 60 + 30)}px`;
+      axis.appendChild(l);
+    }
   }
 }
 
@@ -108,8 +178,10 @@ function makeBlock(kind, { name, start, end, status, id, open, badge }) {
 
   const dur = end === null || end === undefined
     ? 30 : Math.max(end - start, 8);
-  el.style.top = `${start * PX_PER_MIN}px`;
-  el.style.height = `${Math.max(dur * PX_PER_MIN, 11)}px`;
+  el.style.top = `${px(start)}px`;
+  el.style.height = `${Math.max(px(dur), 12)}px`;
+  // 块太矮时文字放不下，交给 CSS 用 data-attr 决定隐藏哪一层
+  el.dataset.h = dur >= 22 ? 'tall' : dur >= 12 ? 'mid' : 'short';
 
   const nm = document.createElement('div');
   nm.className = 'nm';
@@ -123,6 +195,7 @@ function makeBlock(kind, { name, start, end, status, id, open, badge }) {
       ? `${fmtMin(start)}–进行中` : `${fmtMin(start)}–${fmtMin(end)}`;
     el.appendChild(tm);
   }
+  el.title = `${name}｜${fmtMin(start)}–${end === null || end === undefined ? '进行中' : fmtMin(end)}`;
   if (badge) {
     const b = document.createElement('div');
     b.className = 'overlap-badge';
@@ -276,7 +349,7 @@ function onPointerDown(e, el, mode) {
 async function onPointerMove(e) {
   const d = state.drag;
   if (!d) return;
-  const delta = Math.round((e.clientY - d.y0) / PX_PER_MIN);
+  const delta = Math.round((e.clientY - d.y0) / pxPerMin());
   if (Math.abs(delta) < 2) return;
   d.moved = true;
   const s = snap(delta);
@@ -287,9 +360,21 @@ async function onPointerMove(e) {
   else if (d.mode === 'bottom') { newEnd = Math.max(d.start0 + 5, d.end0 + s); }
 
   // 实时预览
-  d.el.style.top = `${newStart * PX_PER_MIN}px`;
-  d.el.style.height = `${Math.max((newEnd - newStart) * PX_PER_MIN, 11)}px`;
+  d.el.style.top = `${px(newStart)}px`;
+  d.el.style.height = `${Math.max(px(newEnd - newStart), 12)}px`;
+  // 拖到边缘时自动滚动容器，否则长轴下没法把块拖到视野外的时间
+  autoScrollDuringDrag(e.clientY);
   d.pending = { newStart, newEnd };
+}
+
+/** 拖动到滚动区上/下边缘附近时自动滚动 */
+function autoScrollDuringDrag(clientY) {
+  const box = document.querySelector('.scroll-area');
+  if (!box) return;
+  const r = box.getBoundingClientRect();
+  const EDGE = 48, SPEED = 12;
+  if (clientY < r.top + EDGE) box.scrollTop -= SPEED;
+  else if (clientY > r.bottom - EDGE) box.scrollTop += SPEED;
 }
 
 async function onPointerUp(e) {
@@ -370,6 +455,74 @@ function escapeHtml(s) {
     c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
+// ---------- 当前时刻线 ----------
+/** 只在查看「今天」时显示。昨天/明天的轴画一条"现在"线没有意义。 */
+function renderNowLine() {
+  document.querySelectorAll('.now-line').forEach(e => e.remove());
+  if (state.date !== todayISO()) return;
+
+  const now = new Date();
+  const m = now.getHours() * 60 + now.getMinutes();
+  for (const ax of [$('tplAxis'), $('actAxis')]) {
+    if (!ax) continue;
+    const l = document.createElement('div');
+    l.className = 'now-line';
+    l.style.top = `${px(m)}px`;
+    l.innerHTML = `<span>${fmtMin(m)}</span>`;
+    ax.appendChild(l);
+  }
+}
+
+// ---------- 滚动联动 ----------
+/** 两栏必须同屏对照，所以任一栏滚动都要带动另一栏。 */
+function bindScrollSync() {
+  const areas = Array.from(document.querySelectorAll('.scroll-area'));
+  if (areas.length < 2) return;
+  let syncing = false;
+  for (const a of areas) {
+    a.addEventListener('scroll', () => {
+      if (syncing) return;
+      syncing = true;
+      for (const b of areas) {
+        if (b !== a && b.scrollTop !== a.scrollTop) b.scrollTop = a.scrollTop;
+      }
+      // 松开标志放到下一帧，避免互相触发的抖动
+      requestAnimationFrame(() => { syncing = false; });
+    }, { passive: true });
+  }
+}
+
+/** 滚轮缩放：Ctrl/⌘+滚轮，普通滚轮留给滚动本身 */
+function bindWheelZoom() {
+  const box = document.querySelector('.columns');
+  if (!box) return;
+  box.addEventListener('wheel', e => {
+    if (!e.ctrlKey && !e.metaKey) return;
+    e.preventDefault();
+
+    const area = e.target.closest('.scroll-area');
+
+    // 记录锚点：鼠标指向的那个时间点，缩放后尽量停在原地
+    let anchor = null;
+    if (area) {
+      const r = area.getBoundingClientRect();
+      const offsetInBox = e.clientY - r.top;          // 鼠标在可视区内的高度
+      const totalH = area.querySelector('.axis-wrap').getBoundingClientRect().height
+                     || hourPx() * 24;
+      const ratio = (area.scrollTop + offsetInBox) / totalH;
+      anchor = { offsetInBox, ratio };
+    }
+
+    stepZoom(e.deltaY < 0 ? 1 : -1);
+
+    if (anchor) {
+      const totalH = hourPx() * 24;
+      const top = Math.max(0, anchor.ratio * totalH - anchor.offsetInBox);
+      for (const a of document.querySelectorAll('.scroll-area')) a.scrollTop = top;
+    }
+  }, { passive: false });
+}
+
 // ---------- 加载 ----------
 async function load() {
   $('actualDate').textContent = state.date;
@@ -389,8 +542,23 @@ async function load() {
   if (act.ok) state.actualRows = act.data;
 
   renderActual(state.rows, state.actualRows);
+  renderNowLine();
 
   document.querySelectorAll('#actAxis .block').forEach(attachBlockEvents);
+  // 数据回来后把当前时刻滚进视野，省掉手动找
+  scrollToNowIfToday();
+}
+
+/** 首次加载时把视图滚到当前时刻附近（仅今天） */
+let didInitialScroll = false;
+function scrollToNowIfToday() {
+  if (didInitialScroll || state.date !== todayISO()) return;
+  const area = document.querySelector('.scroll-area');
+  if (!area) return;
+  const now = new Date();
+  const m = now.getHours() * 60 + now.getMinutes();
+  area.scrollTop = Math.max(0, px(m) - area.clientHeight / 2);
+  didInitialScroll = true;
 }
 
 async function exportFile(fmt) {
@@ -416,8 +584,7 @@ function shiftDay(n) {
 
 // ---------- 启动 ----------
 function boot() {
-  renderRuler();
-  renderHourLines($('tplAxis'));
+  applyZoom();                       // 先定轴高，后续渲染才有正确的几何基准
   $('datePicker').value = state.date;
 
   $('prevDay').onclick = () => shiftDay(-1);
@@ -431,9 +598,32 @@ function boot() {
   $('exportCsv').onclick = () => exportFile('csv');
   $('exportXlsx').onclick = () => exportFile('xlsx');
 
+  // 缩放控件
+  $('zoomIn').onclick = () => stepZoom(1);
+  $('zoomOut').onclick = () => stepZoom(-1);
+  $('zoomReset').onclick = () => setZoom(ZOOM_DEFAULT);
+
+  bindScrollSync();
+  bindWheelZoom();
+
   document.addEventListener('pointermove', onPointerMove);
   document.addEventListener('pointerup', onPointerUp);
   document.addEventListener('keydown', e => {
+    // 缩放快捷键（不干扰方向键微调）
+    if ((e.ctrlKey || e.metaKey) && (e.key === '=' || e.key === '+')) {
+      e.preventDefault(); stepZoom(1); return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === '-') {
+      e.preventDefault(); stepZoom(-1); return;
+    }
+    if ((e.ctrlKey || e.metaKey) && e.key === '0') {
+      e.preventDefault(); setZoom(ZOOM_DEFAULT); return;
+    }
+    // 跳到当前时刻
+    if (e.key === 'n' && document.activeElement.tagName !== 'INPUT') {
+      scrollToNow(true); return;
+    }
+
     const el = document.querySelector('.block.selected');
     if (!el) return;
     if (e.key === 'Delete' || e.key === 'Backspace') {
@@ -444,7 +634,20 @@ function boot() {
     if (e.key === 'ArrowDown') { e.preventDefault(); nudge(el, e.shiftKey ? 15 : 5); }
   });
 
+  // 每分钟刷新一次"现在"线
+  setInterval(renderNowLine, 60000);
+
   load();
+}
+
+/** 滚动到当前时刻。force=true 时忽略"仅今天"的限制。 */
+function scrollToNow(force) {
+  const area = document.querySelector('.scroll-area');
+  if (!area) return;
+  if (!force && state.date !== todayISO()) return;
+  const now = new Date();
+  const m = now.getHours() * 60 + now.getMinutes();
+  area.scrollTop = Math.max(0, px(m) - area.clientHeight / 2);
 }
 
 document.addEventListener('DOMContentLoaded', boot);

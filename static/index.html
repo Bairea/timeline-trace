@@ -9,16 +9,25 @@
 <body>
 <header class="topbar">
   <div class="brand">时间线对照</div>
+
   <div class="date-nav">
     <button id="prevDay" title="前一天">←</button>
     <input type="date" id="datePicker">
-    <button id="today">今天</button>
+    <button id="today" class="ghost">今天</button>
     <button id="nextDay" title="后一天">→</button>
   </div>
+
+  <div class="zoom-ctl" title="Ctrl + 滚轮 也可缩放">
+    <button id="zoomOut" title="缩小">−</button>
+    <span id="zoomLabel">1×</span>
+    <button id="zoomIn" title="放大">+</button>
+    <button id="zoomReset" class="ghost" title="恢复默认">重置</button>
+  </div>
+
   <div class="actions">
-    <a id="statsLink" href="/static/stats.html">统计</a>
-    <button id="exportCsv">导出 CSV</button>
-    <button id="exportXlsx">导出 XLSX</button>
+    <a id="statsLink" href="/static/stats.html" class="ghost">统计</a>
+    <button id="exportCsv" class="ghost">CSV</button>
+    <button id="exportXlsx" class="ghost">XLSX</button>
   </div>
 </header>
 
@@ -27,22 +36,27 @@
   <span><i class="sw offset"></i>偏移</span>
   <span><i class="sw unrecorded"></i>未记录</span>
   <span><i class="sw unplanned"></i>计划外</span>
-  <span class="hint">拖动块可调整 · 双击块名可改名 · 悬停出现 × 可删除</span>
+  <span class="hint">拖动移动 · 拖边缘改时长 · 双击改名 · 悬停 × 删除 · 按 N 跳到此刻</span>
 </div>
 
 <main class="columns">
   <section class="col">
-    <h2>理想 · <span id="tplName">工作日</span></h2>
-    <div class="axis-wrap">
-      <div class="hour-ruler" id="ruler"></div>
-      <div class="axis" id="tplAxis"></div>
+    <h2><span class="dot tpl"></span>理想 · <span id="tplName">工作日</span></h2>
+    <div class="scroll-area">
+      <div class="axis-wrap">
+        <div class="hour-ruler" id="ruler"></div>
+        <div class="axis" id="tplAxis"></div>
+      </div>
     </div>
   </section>
+
   <section class="col">
-    <h2>实际 · <span id="actualDate"></span></h2>
-    <div class="axis-wrap">
-      <div class="hour-ruler"></div>
-      <div class="axis" id="actAxis"></div>
+    <h2><span class="dot act"></span>实际 · <span id="actualDate"></span></h2>
+    <div class="scroll-area">
+      <div class="axis-wrap">
+        <div class="hour-ruler"></div>
+        <div class="axis" id="actAxis"></div>
+      </div>
     </div>
   </section>
 </main>
