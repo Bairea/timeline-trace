@@ -1,0 +1,88 @@
+# 预期时间线（模板）的初始定义。设计文档 §2.3 / §3.1。
+#
+# 这份文件只在**首次初始化**时灌入数据库。数据库仍是运行时唯一真相源：
+# app 启动时不会覆盖已存在的模板，你在模板编辑页手改过的内容不会被冲掉。
+#
+# 想重新按这份文件生成，要么删掉 data/timeline.db 重来，要么在模板
+# 编辑页对应修改——后者不会丢历史日报（对照结果是查询时实时算的）。
+
+templates:
+  - name: 工作日
+    description: 可无限重复的工作日模板
+    is_default: true
+    blocks:
+      # start / end 支持 "HH:MM"。end 早于 start 表示跨零点（如 22:40 → 06:30）。
+      # category 决定统计口径，见 design §5.4：身体锚点 = 早晚健身操，
+      # 项目推进 = 项目推进时长，睡眠 = 睡眠达标率。
+      - start: "06:30"
+        end: "07:00"
+        name: 早操
+        category: 身体锚点
+      - start: "07:00"
+        end: "07:15"
+        name: 洗漱
+        category: 事务
+      - start: "07:20"
+        end: "07:30"
+        name: 早饭
+        category: 事务
+      - start: "07:30"
+        end: "07:35"
+        name: 出门前准备（刮胡子、涂芦荟胶、拿手机耳机工卡、带伞）
+        category: 事务
+      - start: "07:35"
+        end: "08:30"
+        name: 通勤、听书、走路
+        category: 通勤
+      - start: "08:30"
+        end: "12:00"
+        name: 工作
+        category: 项目推进
+      - start: "12:00"
+        end: "12:45"
+        name: 午饭与午休
+        category: 事务
+      - start: "12:45"
+        end: "17:00"
+        name: 工作
+        category: 项目推进
+      - start: "17:00"
+        end: "17:30"
+        name: 小结与规划后续行动
+        category: 事务
+      - start: "17:30"
+        end: "18:50"
+        name: 通勤、听书
+        category: 通勤
+      - start: "18:50"
+        end: "19:30"
+        name: 做饭
+        category: 事务
+      - start: "19:30"
+        end: "20:00"
+        name: 吃饭（别刷视频，最多看书）
+        category: 事务
+      - start: "20:00"
+        end: "20:15"
+        name: 收拾与准备早饭，内务（扫地拖地洗衣服丢垃圾）
+        category: 事务
+      - start: "20:15"
+        end: "20:30"
+        name: 读书 / 练字，保持平和心态
+        category: 情绪稳定
+      - start: "20:30"
+        end: "22:00"
+        name: 干活（中间做拉伸）
+        category: 项目推进
+      - start: "22:00"
+        end: "22:20"
+        name: 洗澡
+        category: 事务
+      - start: "22:20"
+        end: "22:40"
+        name: 晚练
+        category: 身体锚点
+      - start: "22:40"
+        end: "06:30"
+        name: 睡觉
+        category: 睡眠

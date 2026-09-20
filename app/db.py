@@ -10,7 +10,11 @@ CREATE TABLE IF NOT EXISTS templates (
   name        TEXT NOT NULL,
   description TEXT,
   is_default  INTEGER NOT NULL DEFAULT 0,
-  created_at  TEXT NOT NULL
+  created_at  TEXT NOT NULL,
+  -- 模板来源：'seed' = 启动时从 config/timeline.yaml 灌入，'user' = 用户改过。
+  -- 这一列是「保留用户手改」得以成立的前提：没有它就只能二选一——
+  -- 要么无条件覆盖（丢手改），要么无条件跳过（改 YAML 不生效）。
+  source      TEXT NOT NULL DEFAULT 'user'
 );
 CREATE TABLE IF NOT EXISTS template_blocks (
   id          INTEGER PRIMARY KEY,
@@ -53,4 +57,21 @@ def connect(db_path: Path | None = None) -> sqlite3.Connection:
 
 def init_db(conn: sqlite3.Connection) -> None:
     conn.executescript(SCHEMA)
+    _migrate(conn)
     conn.commit()
+
+
+# 幂等迁移。SCHEMA 里全是 CREATE TABLE IF NOT EXISTS，对已存在的表
+# 加不了列——已上线的库需要单独补。每条迁移都先探测再执行，重复跑无副作用。
+_MIGRATIONS: list[tuple[str, str, str]] = [
+    # (表名, 列名, 建列语句)
+    ("templates", "source",
+     "ALTER TABLE templates ADD COLUMN source TEXT NOT NULL DEFAULT 'user'"),
+]
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    for table, column, ddl in _MIGRATIONS:
+        cols = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+        if column not in cols:
+            conn.execute(ddl)
