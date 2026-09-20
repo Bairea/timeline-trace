@@ -74,6 +74,85 @@ def test_aligned_takes_best_when_multiple_actuals():
     assert r.status == "aligned"
 
 
+# ---------- 最小重叠阈值：边界伪影 ----------
+
+def test_tiny_boundary_overlap_is_unrecorded():
+    """2 分钟边界相接是生活常态，不是偏移。设计文档 §5.1 补充规则。
+
+    早操 06:35-07:02 与模板「洗漱」07:00-07:15 只重叠 2 分钟，
+    不应被判为 offset（否则日报会被伪影淹没）。
+    """
+    tpl = BlockLike(420, 435, "洗漱")          # 07:00-07:15
+    act = BlockLike(395, 422, "早操")          # 06:35-07:02，重叠 2 分钟
+    r = compare_block(tpl, [act])
+    assert r.status == "unrecorded"
+    assert r.actual_name is None
+
+
+def test_overlap_at_threshold_counts():
+    """恰好达到阈值（5 分钟）应算 offset。"""
+    tpl = BlockLike(420, 435, "洗漱")
+    act = BlockLike(400, 425, "某活动")        # 重叠 5 分钟
+    r = compare_block(tpl, [act])
+    assert r.status == "offset"
+
+
+def test_overlap_just_below_threshold_is_unrecorded():
+    tpl = BlockLike(420, 435, "洗漱")
+    act = BlockLike(400, 424, "某活动")        # 重叠 4 分钟
+    r = compare_block(tpl, [act])
+    assert r.status == "unrecorded"
+
+
+def test_tiny_overlap_does_not_hide_real_match():
+    """阈值不能把真正的命中吃掉：同模板块有真命中和伪影时应取真命中。"""
+    tpl = BlockLike(420, 435, "洗漱")
+    ghost = BlockLike(395, 422, "早操")        # 伪影，重叠 2 分钟
+    real = BlockLike(422, 437, "洗漱")         # 真命中
+    r = compare_block(tpl, [ghost, real])
+    assert r.status == "aligned"
+    assert r.actual_name == "洗漱"
+
+
+def test_tiny_overlap_block_still_appears_in_day_output():
+    """阈值只影响判定，不能让实际块从输出中消失。"""
+    tpls = [BlockLike(420, 435, "洗漱")]
+    acts = [BlockLike(395, 422, "早操")]
+    results = compare_day(tpls, acts)
+    names = [r.actual_name for r in results if r.actual_name]
+    assert "早操" in names
+
+
+# ---------- 短模板块：纯绝对阈值会误伤 ----------
+
+def test_short_block_shifted_by_1min_is_not_lost():
+    """模板里「出门前准备」只有 5 分钟（07:30-07:35）。
+
+    纯绝对阈值 5 会让它挪 1 分钟就变 unrecorded——即用户明明做了，
+    系统却说没做。覆盖率兜底必须生效。
+    """
+    tpl = BlockLike(450, 455, "出门前准备")     # 5 分钟
+    act = BlockLike(451, 456, "出门前准备")     # 挪 1 分钟，重叠 4 分钟
+    r = compare_block(tpl, [act])
+    assert r.status != "unrecorded", "短块轻微偏移不应被判为未记录"
+    assert r.actual_name == "出门前准备"
+
+
+def test_short_block_low_coverage_still_unrecorded():
+    """覆盖率不足的短块仍应忽略——阈值不能形同虚设。"""
+    tpl = BlockLike(450, 455, "出门前准备")
+    act = BlockLike(454, 460, "别的事")         # 重叠仅 1 分钟 = 20%
+    r = compare_block(tpl, [act])
+    assert r.status == "unrecorded"
+
+
+def test_short_block_exact_match_aligned():
+    tpl = BlockLike(450, 455, "出门前准备")
+    act = BlockLike(450, 455, "出门前准备")
+    r = compare_block(tpl, [act])
+    assert r.status == "aligned"
+
+
 # ---------- compare_day ----------
 
 def test_compare_day_marks_unplanned():

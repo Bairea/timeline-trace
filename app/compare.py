@@ -5,6 +5,27 @@ from typing import Literal, Optional
 Status = Literal["aligned", "offset", "unrecorded", "unplanned"]
 TOLERANCE_MIN = 15  # 容差分钟数，设计文档 §5.2
 
+# 最小有效重叠。低于此值的重叠视为边界相接（上一件事拖了几分钟），
+# 不是真实的时间错位，判为 unrecorded 而非 offset。
+# 理由：生活时间表相邻块本就会互相蹭几分钟，若按「重叠 > 0 即 offset」
+# 处理，日报会被伪影淹没，用户会逐渐无视告警。
+#
+# 但纯绝对阈值会误伤短模板块：模板里「出门前准备」只有 5 分钟，
+# 绝对阈值 5 会让它永远无法成为 offset（挪 1 分钟 → 重叠 0）。
+# 故采用「绝对分钟数 或 覆盖率」双重判定，满足其一即视为有效重叠。
+MIN_OVERLAP_MIN = 5
+MIN_OVERLAP_RATIO = 0.5
+
+
+def _is_meaningful_overlap(ov: int, tpl_dur: int) -> bool:
+    """重叠是否足以支撑「这段时间发生了别的事」的判断。"""
+    if ov <= 0:
+        return False
+    if ov >= MIN_OVERLAP_MIN:
+        return True
+    # 短模板块：按覆盖率判断
+    return tpl_dur > 0 and (ov / tpl_dur) >= MIN_OVERLAP_RATIO
+
 
 @dataclass
 class BlockLike:
@@ -42,13 +63,17 @@ def _rank(c: BlockComparison) -> tuple:
 
 
 def compare_block(tpl: BlockLike, actuals: list[BlockLike]) -> BlockComparison:
-    """把单个模板块与该日所有实际块比对，取最优结果。"""
+    """把单个模板块与该日所有实际块比对，取最优结果。
+
+    重叠低于 MIN_OVERLAP_MIN 的实际块被忽略——那是边界相接，
+    不足以支撑「这个时段发生了别的事」的判断。
+    """
     best: Optional[BlockComparison] = None
     tpl_dur = tpl.end_min - tpl.start_min
 
     for act in actuals:
         ov = overlap_minutes(tpl.start_min, tpl.end_min, act.start_min, act.end_min)
-        if ov == 0:
+        if not _is_meaningful_overlap(ov, tpl_dur):
             continue
 
         delta_start = act.start_min - tpl.start_min
@@ -110,7 +135,9 @@ def compare_day(template_blocks: list[BlockLike],
             continue
         # 该实际块未被任何模板块行引用，补齐一行
         hits = [t for t in template_blocks
-                if overlap_minutes(act.start_min, act.end_min, t.start_min, t.end_min) > 0]
+                if _is_meaningful_overlap(
+                    overlap_minutes(act.start_min, act.end_min, t.start_min, t.end_min),
+                    t.end_min - t.start_min)]
         if hits:
             # 与某模板块有交集，但该模板块的最优结果被别的块赢得 → offset
             tpl = hits[0]
