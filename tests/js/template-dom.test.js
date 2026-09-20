@@ -61,6 +61,18 @@ function makeEnv(calls) {
 }
 
 async function run() {
+  // jsdom 装在隔离工作区，不随项目依赖走。缺了就说清楚怎么装，
+  // 而不是抛一串 MODULE_NOT_FOUND 栈——那会让人以为是代码坏了。
+  try {
+    require.resolve('jsdom');
+  } catch (e) {
+    console.log('跳过：未找到 jsdom。');
+    console.log('安装后重跑（注意 NODE_PATH 用 Windows 风格路径）：');
+    console.log('  NODE_PATH="C:/Users/<你>/.workbuddy/binaries/node/workspace/node_modules" \\');
+    console.log('    node tests/js/template-dom.test.js');
+    return;
+  }
+
   const calls = [];
   const { win } = makeEnv(calls);
 
