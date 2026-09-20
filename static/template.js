@@ -17,8 +17,13 @@
 
 const DAY_MIN = 1440;
 
-/** 与模板种子数据一致的类别候选（设计文档 §3 注释里列的六个） */
-const CATEGORIES = ['睡眠', '身体锚点', '情绪稳定', '项目推进', '通勤', '事务'];
+/** 类别候选，须与 app/config.py 的 CANDIDATE_CATEGORIES 保持一致。
+ *
+ * 「其他」不是给人选的，而是 app/classify.py 在无法归类时的**产出值**。
+ * 这里必须列出它，否则库里真有「其他」的块时下拉框会落到「未分类」，
+ * 用户一改就把它覆盖成 null——静默丢掉一个有效取值。
+ */
+const CATEGORIES = ['睡眠', '身体锚点', '情绪稳定', '项目推进', '通勤', '事务', '其他'];
 
 const state = {
   templates: [],
@@ -124,9 +129,12 @@ function render() {
     return;
   }
   const rows = state.blocks.map(b => {
+    // category 也须转义：它会被拼进 HTML 属性，而服务端虽已校验取值，
+    // 前端不该依赖「上游一定干净」——同一行的 name 早就转义了。
     const catOpts = ['<option value="">未分类</option>']
       .concat(CATEGORIES.map(c =>
-        `<option value="${c}"${c === b.category ? ' selected' : ''}>${c}</option>`))
+        `<option value="${escapeHtml(c)}"${c === b.category ? ' selected' : ''}>`
+        + `${escapeHtml(c)}</option>`))
       .join('');
     return `<div class="block-row" data-id="${b.id}">
       <input class="bt" data-field="start_min" value="${fmtMin(b.start_min)}"
@@ -156,10 +164,12 @@ function renderCatChips() {
   const used = new Set(state.blocks.map(b => b.category).filter(Boolean));
   const missing = CATEGORIES.filter(c => !used.has(c));
   const chips = CATEGORIES.map(c =>
-    `<span class="chip" style="${used.has(c) ? '' : 'opacity:.45'}">${c}</span>`).join('');
+    `<span class="chip" style="${used.has(c) ? '' : 'opacity:.45'}">`
+    + `${escapeHtml(c)}</span>`).join('');
   $('catChips').innerHTML = chips
     + (missing.length
-      ? `<span class="chip" style="border-style:dashed">未使用：${missing.join('、')}</span>`
+      ? `<span class="chip" style="border-style:dashed">未使用：`
+        + `${missing.map(escapeHtml).join('、')}</span>`
       : '');
 }
 

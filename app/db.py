@@ -10,11 +10,7 @@ CREATE TABLE IF NOT EXISTS templates (
   name        TEXT NOT NULL,
   description TEXT,
   is_default  INTEGER NOT NULL DEFAULT 0,
-  created_at  TEXT NOT NULL,
-  -- 模板来源：'seed' = 启动时从 config/timeline.yaml 灌入，'user' = 用户改过。
-  -- 这一列是「保留用户手改」得以成立的前提：没有它就只能二选一——
-  -- 要么无条件覆盖（丢手改），要么无条件跳过（改 YAML 不生效）。
-  source      TEXT NOT NULL DEFAULT 'user'
+  created_at  TEXT NOT NULL
 );
 CREATE TABLE IF NOT EXISTS template_blocks (
   id          INTEGER PRIMARY KEY,
@@ -63,15 +59,31 @@ def init_db(conn: sqlite3.Connection) -> None:
 
 # 幂等迁移。SCHEMA 里全是 CREATE TABLE IF NOT EXISTS，对已存在的表
 # 加不了列——已上线的库需要单独补。每条迁移都先探测再执行，重复跑无副作用。
-_MIGRATIONS: list[tuple[str, str, str]] = [
-    # (表名, 列名, 建列语句)
-    ("templates", "source",
-     "ALTER TABLE templates ADD COLUMN source TEXT NOT NULL DEFAULT 'user'"),
+_ADD_COLUMNS: list[tuple[str, str, str]] = []
+
+# 要删除的列：(表名, 列名)。SQLite 3.35+ 支持 ALTER TABLE DROP COLUMN。
+#
+# templates.source 是「YAML 配置化」时加的，本意是区分「配置灌的」与
+# 「用户改的」，好判断能否重新种子化。但它的默认值是 'user'，意味着任何
+# 从旧版本升级上来的库都会被标成 user——区分不出「用户真改过」和
+# 「旧代码灌的」，声称的用途根本实现不了。而实际判断是否灌入用的是
+# 模板名，从没读过这一列。只写不读 + 语义不可用 = 纯技术债，删掉。
+#
+# 教训：加字段前先想清楚「谁读它、读到之后做什么」。想不出来的话，
+# 那个字段本身就是答案。
+_DROP_COLUMNS: list[tuple[str, str]] = [
+    ("templates", "source"),
 ]
 
 
 def _migrate(conn: sqlite3.Connection) -> None:
-    for table, column, ddl in _MIGRATIONS:
-        cols = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
-        if column not in cols:
+    for table, column, ddl in _ADD_COLUMNS:
+        if column not in _columns(conn, table):
             conn.execute(ddl)
+    for table, column in _DROP_COLUMNS:
+        if column in _columns(conn, table):
+            conn.execute(f"ALTER TABLE {table} DROP COLUMN {column}")
+
+
+def _columns(conn: sqlite3.Connection, table: str) -> set[str]:
+    return {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}

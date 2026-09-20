@@ -160,6 +160,89 @@ def test_update_ignores_unknown_fields(auth_client, tid):
     assert got["template_id"] == tid
 
 
+# ---------- category 取值校验 ----------
+
+def test_add_block_rejects_unknown_category(auth_client, tid):
+    """category 是统计口径的锚点，也是会被拼进 HTML 属性的值。
+
+    此前只做字段白名单、不校验取值，任意字符串（含引号）都能入库。
+    """
+    r = auth_client.post(f"/api/templates/{tid}/blocks",
+                         json={"start_min": 100, "end_min": 130, "name": "x",
+                               "category": '" onmouseover="alert(1)'})
+    assert r.status_code == 422
+
+
+def test_add_block_category_error_lists_candidates(auth_client, tid):
+    """报错要能直接告诉调用方该写什么，而不是只说「非法」。"""
+    r = auth_client.post(f"/api/templates/{tid}/blocks",
+                         json={"start_min": 100, "end_min": 130, "name": "x",
+                               "category": "睡觉"})
+    assert r.status_code == 422
+    assert "睡眠" in r.json()["detail"]
+
+
+def test_add_block_accepts_each_candidate_category(auth_client, tid):
+    from app.config import CANDIDATE_CATEGORIES
+    for i, cat in enumerate(CANDIDATE_CATEGORIES):
+        r = auth_client.post(f"/api/templates/{tid}/blocks",
+                             json={"start_min": 1000 + i, "end_min": 1010 + i,
+                                   "name": f"c{i}", "category": cat})
+        assert r.status_code == 200, f"{cat} 应被接受"
+
+
+def test_add_block_accepts_null_category(auth_client, tid):
+    """未分类是合法状态（config 里 category 本就是可空的）。"""
+    r = auth_client.post(f"/api/templates/{tid}/blocks",
+                         json={"start_min": 100, "end_min": 130,
+                               "name": "没分类", "category": None})
+    assert r.status_code == 200
+
+
+def test_update_rejects_unknown_category(auth_client, tid):
+    """PUT 必须与 POST 同规则——否则改一次就能绕过校验。"""
+    b = _first_block(auth_client, tid)
+    r = auth_client.put(f"/api/template-blocks/{b['id']}",
+                        json={"category": "随便写的"})
+    assert r.status_code == 422
+
+
+def test_update_can_clear_category(auth_client, tid):
+    b = _first_block(auth_client, tid)
+    assert auth_client.put(f"/api/template-blocks/{b['id']}",
+                           json={"category": "睡眠"}).status_code == 200
+    assert auth_client.put(f"/api/template-blocks/{b['id']}",
+                           json={"category": None}).status_code == 200
+    got = [x for x in auth_client.get(f"/api/templates/{tid}/blocks").json()
+           if x["id"] == b["id"]][0]
+    assert got["category"] is None
+
+
+def test_add_block_category_actually_persists(auth_client, tid):
+    """补一个此前缺失的断言：category 真的落库了。
+
+    旧测试传了 category 却只断言名称与时间——这正是取值无校验
+    这个缺陷逃过测试的原因。
+    """
+    r = auth_client.post(f"/api/templates/{tid}/blocks",
+                         json={"start_min": 100, "end_min": 130,
+                               "name": "带类别", "category": "身体锚点"})
+    bid = r.json()["id"]
+    got = [x for x in auth_client.get(f"/api/templates/{tid}/blocks").json()
+           if x["id"] == bid][0]
+    assert got["category"] == "身体锚点"
+
+
+def test_update_cannot_change_sort_order(auth_client, tid):
+    """sort_order 不在白名单里：显示顺序应跟时间走，改乱了无处纠正。"""
+    blocks = auth_client.get(f"/api/templates/{tid}/blocks").json()
+    target = blocks[2]
+    assert auth_client.put(f"/api/template-blocks/{target['id']}",
+                           json={"sort_order": 99}).status_code == 200
+    after = auth_client.get(f"/api/templates/{tid}/blocks").json()
+    assert [x["id"] for x in after] == [x["id"] for x in blocks]
+
+
 # ---------- DELETE ----------
 
 def test_delete_block_removes_it(auth_client, tid):

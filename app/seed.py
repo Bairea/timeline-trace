@@ -11,9 +11,12 @@
   比不能改更糟。反过来若无条件跳过，改了 YAML 又不生效，等于把
   配置化做成了摆设。
 
-  故：仅在**该模板尚不存在**时灌入。想强制重新生成，删掉模板或
-  直接改 `data/timeline.db`。`source` 列记录了模板是不是由本模块
-  创建的，为将来可能需要的「重新种子化」留判断依据。
+  故：仅在**该模板尚不存在**时灌入。判断依据是模板名——不额外记录
+  「来源」字段。曾加过 templates.source 想区分「配置灌的」与「用户改的」，
+  但它的默认值让旧库无法区分二者，声称的用途实现不了，已删除
+  （见 db.py 的 _DROP_COLUMNS）。
+
+想按配置重新生成，用 `reseed_from_config()`，或在模板编辑页手改。
 """
 import sqlite3
 from datetime import datetime
@@ -37,23 +40,60 @@ def seed_from_specs(conn: sqlite3.Connection,
             continue
 
         cur = conn.execute(
-            "INSERT INTO templates (name, description, is_default, created_at, source)"
-            " VALUES (?, ?, ?, ?, 'seed')",
+            "INSERT INTO templates (name, description, is_default, created_at)"
+            " VALUES (?, ?, ?, ?)",
             (spec.name, spec.description, int(spec.is_default),
              datetime.now().isoformat()),
         )
         tid = cur.lastrowid
-        conn.executemany(
-            "INSERT INTO template_blocks"
-            " (template_id, start_min, end_min, name, category, sort_order)"
-            " VALUES (?, ?, ?, ?, ?, ?)",
-            [(tid, b.start_min, b.end_min, b.name, b.category, b.sort_order)
-             for b in spec.blocks],
-        )
+        _insert_blocks(conn, tid, spec)
         created.append(tid)
 
     conn.commit()
     return created
+
+
+def _insert_blocks(conn: sqlite3.Connection, tid: int, spec: TemplateSpec) -> None:
+    conn.executemany(
+        "INSERT INTO template_blocks"
+        " (template_id, start_min, end_min, name, category, sort_order)"
+        " VALUES (?, ?, ?, ?, ?, ?)",
+        [(tid, b.start_min, b.end_min, b.name, b.category, b.sort_order)
+         for b in spec.blocks],
+    )
+
+
+def reseed_from_config(conn: sqlite3.Connection,
+                       name: str,
+                       config_path: Optional[object] = None) -> dict:
+    """按配置**重建**指定名称的模板（覆盖既有块）。
+
+    与 `seed_from_specs` 的区别在于它会丢弃该模板上的手改。它存在
+    只是因为「改了 YAML 想立刻生效」是个合理需求，需要一个显式入口——
+    而不是让每次启动都偷偷覆盖。
+
+    返回 {'template_id': int, 'blocks': int}。模板不存在则 ValueError。
+    """
+    specs = {t.name: t for t in load_timeline(config_path)}
+    spec = specs.get(name)
+    if spec is None:
+        raise ValueError(
+            f"配置里没有名为「{name}」的模板"
+            f"（现有：{'、'.join(specs)}）")
+
+    row = conn.execute(
+        "SELECT id FROM templates WHERE name = ?", (name,)).fetchone()
+    if not row:
+        raise ValueError(f"库里没有名为「{name}」的模板，无需重建")
+
+    tid = row["id"]
+    conn.execute("DELETE FROM template_blocks WHERE template_id = ?", (tid,))
+    _insert_blocks(conn, tid, spec)
+    conn.execute(
+        "UPDATE templates SET description = ?, is_default = ? WHERE id = ?",
+        (spec.description, int(spec.is_default), tid))
+    conn.commit()
+    return {"template_id": tid, "blocks": len(spec.blocks)}
 
 
 def seed_default_template(conn: sqlite3.Connection,

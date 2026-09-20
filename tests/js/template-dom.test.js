@@ -107,9 +107,14 @@ async function run() {
   // 类别下拉应包含候选值且选中正确项
   const catSel = rows[0].querySelector('[data-field="category"]');
   check('类别下拉选中「身体锚点」', catSel.value, '身体锚点');
-  checkTrue('类别下拉含六个候选',
-    ['睡眠', '身体锚点', '情绪稳定', '项目推进', '通勤', '事务']
+  checkTrue('类别下拉含全部七个候选',
+    ['睡眠', '身体锚点', '情绪稳定', '项目推进', '通勤', '事务', '其他']
       .every(c => Array.from(catSel.options).some(o => o.value === c)));
+
+  // 「其他」是 classify.js 无法归类时的产出值，必须能被选中显示；
+  // 否则库里的「其他」会显示成「未分类」，用户一改就把它覆盖掉。
+  checkTrue('「其他」是可选值，不是仅作图例',
+    Array.from(catSel.options).some(o => o.value === '其他' && !o.disabled));
 
   // 名称里的特殊字符不应破坏 DOM
   check('含全角括号的名称完整渲染',

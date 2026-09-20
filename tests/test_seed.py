@@ -92,18 +92,79 @@ def test_seed_preserves_user_edits(conn):
     assert conn.execute("SELECT COUNT(*) c FROM template_blocks").fetchone()["c"] == 18
 
 
-def test_seed_marks_source(conn):
-    """新建的模板须标记来源为 seed，供将来判断能否重新种子化。"""
+def test_seed_does_not_add_a_source_column(conn):
+    """templates 不该有 source 列——它只写不读，且默认值让旧库无法区分
+    「用户改过」与「旧代码灌的」，声称的用途实现不了，已删除。"""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(templates)")}
+    assert "source" not in cols
+
+
+def test_migration_drops_legacy_source_column(tmp_path, monkeypatch):
+    """带 source 列的旧库启动后该列应被清掉，且数据无损。"""
+    import app.db as db
+
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "old.db")
+    c = db.connect()
+    c.executescript("""
+        CREATE TABLE templates (
+          id INTEGER PRIMARY KEY, name TEXT NOT NULL, description TEXT,
+          is_default INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL,
+          source TEXT NOT NULL DEFAULT 'user');
+    """)
+    c.execute("INSERT INTO templates (name, is_default, created_at, source)"
+              " VALUES ('工作日', 1, 'x', 'user')")
+    c.commit()
+
+    db.init_db(c)      # 应执行删列迁移
+
+    cols = {r["name"] for r in c.execute("PRAGMA table_info(templates)")}
+    assert "source" not in cols
+    assert c.execute("SELECT COUNT(*) n FROM templates").fetchone()["n"] == 1
+    c.close()
+
+
+def test_migration_is_idempotent_on_legacy_db(tmp_path, monkeypatch):
+    """迁移重复跑不得抛错（列已不存在时不能再 DROP）。"""
+    import app.db as db
+
+    monkeypatch.setattr(db, "DB_PATH", tmp_path / "old2.db")
+    c = db.connect()
+    db.init_db(c)
+    db.init_db(c)
+    db.init_db(c)
+    c.close()
+
+
+def test_reseed_rebuilds_blocks_from_config(conn, specs):
+    """改了 YAML 想立刻生效时走显式入口，而不是让每次启动偷偷覆盖。"""
+    from app.seed import reseed_from_config
+
     seed_default_template(conn)
-    row = conn.execute("SELECT source FROM templates").fetchone()
-    assert row["source"] == "seed"
+    conn.execute("UPDATE template_blocks SET name = '我改过的' WHERE sort_order = 0")
+    conn.execute("DELETE FROM template_blocks WHERE sort_order = 1")
+    conn.commit()
+
+    result = reseed_from_config(conn, "工作日")
+
+    assert result["blocks"] == len(specs[0].blocks)
+    names = [r["name"] for r in conn.execute(
+        "SELECT name FROM template_blocks ORDER BY sort_order")]
+    assert names[0] == "早操"                 # 手改被覆盖
+    assert len(names) == len(specs[0].blocks)  # 被删的块回来了
+
+
+def test_reseed_unknown_template_raises(conn, specs):
+    from app.seed import reseed_from_config
+    seed_default_template(conn)
+    with pytest.raises(ValueError):
+        reseed_from_config(conn, "不存在的模板")
 
 
 def test_seed_skips_existing_template_of_same_name(conn, specs):
     """同名模板已存在时不覆盖其块——即使内容完全不同。"""
     conn.execute(
-        "INSERT INTO templates (name, is_default, created_at, source)"
-        " VALUES ('工作日', 1, 'x', 'user')")
+        "INSERT INTO templates (name, is_default, created_at)"
+        " VALUES ('工作日', 1, 'x')")
     conn.execute(
         "INSERT INTO template_blocks (template_id, start_min, end_min, name, sort_order)"
         " VALUES (1, 0, 60, '我自己建的', 0)")

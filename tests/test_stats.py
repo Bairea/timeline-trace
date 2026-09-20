@@ -75,6 +75,46 @@ def test_infer_skips_open_ended_block():
     assert infer_category(r, TPL) == UNCATEGORIZED
 
 
+def test_name_match_ignores_time_on_purpose():
+    """名字匹配刻意不看时间——这是有意决定，不是疏漏。
+
+    名字不是「匹配模板块」的线索，而是用户对「这是什么事」的直接声明。
+    用户打了「干活」，就是说他处于干活状态，时间放在上午还是晚上不影响
+    分类。若要求时间重叠，就会丢掉「785–845 干活」这种记录（模板里
+    上午叫「工作」、干活排在 20:30）——而时间错位恰恰是这个工具最该
+    暴露的东西，统计层不该把它悄悄丢掉。
+
+    这条测试守着上面这个结论，防止后人「顺手修正」成带时间约束的版本。
+    """
+    tpl = [
+        {"id": 1, "start_min": 510, "end_min": 720, "name": "工作",
+         "category": "项目推进"},
+        {"id": 2, "start_min": 1230, "end_min": 1320,
+         "name": "干活（中间做拉伸）", "category": "项目推进"},
+    ]
+    # 12:45–14:05 记「干活」：名字匹配规则②，但时间与「干活」模板块无交集
+    r = _actual(785, 845, "干活")
+    assert infer_category(r, tpl) == "项目推进"
+
+
+def test_empty_name_falls_back_to_time():
+    """没有名字线索时才启用时间兜底。"""
+    tpl = [{"id": 1, "start_min": 510, "end_min": 720, "name": "工作",
+            "category": "项目推进"}]
+    assert infer_category(_actual(510, 700, "未命名"), tpl) == "项目推进"
+
+
+def test_unknown_name_short_record_falls_through():
+    """已知局限：名字无关联 + 记录远短于模板块 → 落榜。
+
+    见 docs/reviews/2026-09-20-template-config-review.md §4。
+    这条测试固定住当前行为，等语义决策定了再改。
+    """
+    tpl = [{"id": 1, "start_min": 510, "end_min": 720, "name": "工作",
+            "category": "项目推进"}]
+    assert infer_category(_actual(510, 540, "专注写代码"), tpl) == UNCATEGORIZED
+
+
 def test_infer_category_map_keys_by_id():
     """同名块在同一天可能有两个，映射必须以 id 为键。"""
     rows = [_actual(390, 400, "早操", bid=7), _actual(1340, 1355, "晚练", bid=8)]

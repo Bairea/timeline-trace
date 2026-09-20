@@ -41,6 +41,32 @@ def _validate(start: object, end: object, name: object) -> tuple[int, int, str]:
     return start, end, name.strip()
 
 
+def _validate_category(value: object) -> Optional[str]:
+    """校验 category 取值。None 表示「未分类」，是合法状态。
+
+    取值范围必须由代码约束，不能只靠前端下拉框：category 是统计口径的
+    锚点（app/classify.py 与 app/stats.py 都按它的字面值判定），任意
+    字符串写进去会破坏统计语义。此外这个值会被模板编辑页直接拼进
+    HTML 属性，不约束取值等于开了一条注入路径。
+
+    错误消息带上候选值——用户（或前端的旧版本）不知道该写什么时，
+    报错要能直接告诉他。
+    """
+    from app.config import CANDIDATE_CATEGORIES
+
+    if value is None:
+        return None
+    if not isinstance(value, str):
+        raise HTTPException(422, "category 须是字符串或 null")
+    v = value.strip()
+    if not v:
+        return None
+    if v not in CANDIDATE_CATEGORIES:
+        raise HTTPException(
+            422, f"未知的 category「{v}」，候选值：{'、'.join(CANDIDATE_CATEGORIES)}")
+    return v
+
+
 def _fetch_block(conn, block_id: int):
     row = conn.execute(
         "SELECT * FROM template_blocks WHERE id = ?", (block_id,)).fetchone()
@@ -75,6 +101,7 @@ def add_template_block(template_id: int, payload: dict, conn=Depends(_conn)):
     _fetch_template(conn, template_id)
     start, end, name = _validate(
         payload.get("start_min"), payload.get("end_min"), payload.get("name"))
+    category = _validate_category(payload.get("category"))
 
     nxt = conn.execute(
         "SELECT COALESCE(MAX(sort_order), -1) + 1 AS n FROM template_blocks"
@@ -83,7 +110,7 @@ def add_template_block(template_id: int, payload: dict, conn=Depends(_conn)):
         "INSERT INTO template_blocks"
         " (template_id, start_min, end_min, name, category, sort_order)"
         " VALUES (?, ?, ?, ?, ?, ?)",
-        (template_id, start, end, name, payload.get("category"), nxt))
+        (template_id, start, end, name, category, nxt))
     conn.commit()
     return {"id": cur.lastrowid}
 
@@ -91,10 +118,10 @@ def add_template_block(template_id: int, payload: dict, conn=Depends(_conn)):
 @router.put("/template-blocks/{block_id}")
 def update_template_block(block_id: int, payload: dict, conn=Depends(_conn)):
     """局部更新。start / end / name 三者取「新值或原值」后整体校验，
-    否则只改 end 就能绕过 start<end 的约束。"""
+    否则只改 end 就能绕过 start<end 的约束。category 同理单独校验取值。"""
     row = _fetch_block(conn, block_id)
 
-    allowed = {"start_min", "end_min", "name", "category", "sort_order"}
+    allowed = {"start_min", "end_min", "name", "category"}
     updates = {k: v for k, v in payload.items() if k in allowed}
     if not updates:
         return {"ok": True}
@@ -106,6 +133,9 @@ def update_template_block(block_id: int, payload: dict, conn=Depends(_conn)):
             updates.get("name", row["name"]),
         )
         updates["start_min"], updates["end_min"], updates["name"] = start, end, name
+
+    if "category" in updates:
+        updates["category"] = _validate_category(updates["category"])
 
     sets = ", ".join(f"{k} = ?" for k in updates)
     conn.execute(f"UPDATE template_blocks SET {sets} WHERE id = ?",

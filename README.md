@@ -53,7 +53,9 @@ NODE_PATH="C:/Users/<你>/.workbuddy/binaries/node/workspace/node_modules" \
 **只在首次初始化时灌入数据库，之后不再干预。** 数据库是运行时唯一真相源：
 
 - 启动时若同名模板已存在 → 跳过，你在模板编辑页的改动不会被冲掉；
-- 想按配置重新生成 → 删掉 `data/timeline.db` 重来，或在模板编辑页手改。
+- 想按配置**重新生成**（会丢弃手改）→ 调 `app.seed.reseed_from_config(conn, "工作日")`，
+  或删掉 `data/timeline.db` 重来。不给「每次启动自动同步」是因为那会让
+  你在编辑页的改动在下次重启时凭空消失。
 
 这样做的理由：对照结果是查询时实时计算的，模板本就是你会持续调整的东西。
 若每次启动都按 YAML 覆盖，「改了会自己变回去」比不能改更糟；若无条件跳过，
@@ -82,7 +84,7 @@ NODE_PATH="C:/Users/<你>/.workbuddy/binaries/node/workspace/node_modules" \
 |---|---|
 | `app/compare.py` | 对照引擎。**纯函数，无 IO** |
 | `app/parser.py` | 快速记录行解析器。**纯函数，无 IO** |
-| `app/classify.py` | 实际块的分类推断（从模板派生，不落库）。**纯函数，无 IO** |
+| `app/classify.py` | 实际块的分类推断（从模板派生，不落库）。**纯函数，无 IO**。有一处待决策的语义取舍，见 [评审报告 §4](docs/reviews/2026-09-20-template-config-review.md) |
 | `app/config.py` | 加载并校验 `config/*.yaml`。解析层是纯函数 |
 | `app/db.py` | SQLite 连接、建表与幂等迁移 |
 | `app/repo.py` | 实际块数据访问（查询自动过滤软删除） |
@@ -106,3 +108,10 @@ category。这与「对照结果不落库、改模板即重算历史」是同一
 另外一个容易虚高的场景已被测试守住：模板「干活 20:30–22:00」时段内
 刷 30 分钟短视频，**不会**被算成项目推进（见
 `tests/test_api_export.py::test_stats_excludes_unrelated_block_inside_template_span`）。
+
+## 评审
+
+`docs/reviews/` 存独立的代码评审报告。最新一份
+[2026-09-20-template-config-review.md](docs/reviews/2026-09-20-template-config-review.md)
+覆盖模板编辑与 YAML 配置化两次改动，记录了 1 个 P0（已修）、4 个 P2（已修）、
+**2 个经实测撤回的误报**，以及 1 个待决策的语义取舍。
