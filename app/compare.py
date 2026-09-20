@@ -5,6 +5,10 @@ from typing import Literal, Optional
 Status = Literal["aligned", "offset", "unrecorded", "unplanned"]
 TOLERANCE_MIN = 15  # 容差分钟数，设计文档 §5.2
 
+# 一天的分钟数。跨零点块的 end_min 会超过它（22:40→次日06:30 = 1360→1830）。
+# 此前是散落在各处的裸数字 1440，提为常量以便校验逻辑统一引用。
+DAY_MIN = 24 * 60
+
 # 最小有效重叠。低于此值的重叠视为边界相接（上一件事拖了几分钟），
 # 不是真实的时间错位，判为 unrecorded 而非 offset。
 # 理由：生活时间表相邻块本就会互相蹭几分钟，若按「重叠 > 0 即 offset」
