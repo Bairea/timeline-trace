@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>时间线对照</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">时间线对照</div>
+  <div class="date-nav">
+    <button id="prevDay" title="前一天">←</button>
+    <input type="date" id="datePicker">
+    <button id="today">今天</button>
+    <button id="nextDay" title="后一天">→</button>
+  </div>
+  <div class="actions">
+    <a id="statsLink" href="/static/stats.html">统计</a>
+    <button id="exportCsv">导出 CSV</button>
+    <button id="exportXlsx">导出 XLSX</button>
+  </div>
+</header>
+
+<div class="legend">
+  <span><i class="sw aligned"></i>对齐</span>
+  <span><i class="sw offset"></i>偏移</span>
+  <span><i class="sw unrecorded"></i>未记录</span>
+  <span><i class="sw unplanned"></i>计划外</span>
+  <span class="hint">拖动块可调整 · 双击块名可改名 · 悬停出现 × 可删除</span>
+</div>
+
+<main class="columns">
+  <section class="col">
+    <h2>理想 · <span id="tplName">工作日</span></h2>
+    <div class="axis-wrap">
+      <div class="hour-ruler" id="ruler"></div>
+      <div class="axis" id="tplAxis"></div>
+    </div>
+  </section>
+  <section class="col">
+    <h2>实际 · <span id="actualDate"></span></h2>
+    <div class="axis-wrap">
+      <div class="hour-ruler"></div>
+      <div class="axis" id="actAxis"></div>
+    </div>
+  </section>
+</main>
+
+<div class="quickbar">
+  <input id="quickInput" type="text" autocomplete="off"
+         placeholder="输入如 20:30-21:10 干活 ／ 20:30 干活 ／ 20:30- 干活（进行中）">
+  <button id="quickSubmit">记录</button>
+  <label class="opt"><input type="checkbox" id="chainPrev" checked> 从上一块接着算</label>
+</div>
+<div id="quickError" class="quick-error" hidden></div>
+
+<div id="toast" class="toast" hidden>
+  <span id="toastText"></span>
+  <button id="toastUndo">撤销</button>
+</div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>统计 · 时间线对照</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">时间线对照 · 统计</div>
+  <div class="actions">
+    <a href="/">← 回到对照</a>
+    <button id="exportCsv">导出 CSV</button>
+    <button id="exportXlsx">导出 XLSX</button>
+  </div>
+</header>
+
+<div class="stats-page">
+  <div class="stats-controls">
+    <label>从 <input type="date" id="start"></label>
+    <label>到 <input type="date" id="end"></label>
+    <button data-range="7">近 7 天</button>
+    <button data-range="30">近 30 天</button>
+    <button data-range="90">近 90 天</button>
+    <button id="apply">查看</button>
+  </div>
+
+  <div id="rangeCards" class="stat-cards"></div>
+
+  <h3>每日明细</h3>
+  <div id="dailyTable"><div class="loading">加载中…</div></div>
+
+  <h3>这段区间里，模板哪些块最常没做到</h3>
+  <div id="gapTable" class="loading">加载中…</div>
+</div>
+
+<script src="/static/stats.js"></script>
+</body>
+</html>

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>登录 · 时间线对照</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="login-wrap">
+  <form class="login-box" id="loginForm" autocomplete="on">
+    <h1>时间线对照</h1>
+    <input type="password" id="pw" name="password" placeholder="访问口令"
+           autocomplete="current-password" autofocus>
+    <button type="submit" id="submitBtn">进入</button>
+    <div class="login-err" id="err"></div>
+  </form>
+</div>
+
+<script>
+'use strict';
+
+async function boot() {
+  // 已登录（或本地未设口令）就直接进主页，免得白填一次口令
+  try {
+    const r = await fetch('/api/health');
+    const h = await r.json();
+    if (!h.auth_required) { location.replace('/'); return; }
+  } catch (_) { /* 探测失败就老老实实显示表单 */ }
+
+  const form = document.getElementById('loginForm');
+  const pw = document.getElementById('pw');
+  const err = document.getElementById('err');
+  const btn = document.getElementById('submitBtn');
+
+  form.addEventListener('submit', async e => {
+    e.preventDefault();
+    err.textContent = '';
+    btn.disabled = true;
+    btn.textContent = '验证中…';
+    try {
+      const r = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: pw.value }),
+      });
+      if (r.ok) {
+        location.replace(new URLSearchParams(location.search).get('next') || '/');
+        return;
+      }
+      const d = await r.json().catch(() => ({}));
+      err.textContent = d.detail || `登录失败（${r.status}）`;
+      pw.select();
+    } catch (_) {
+      err.textContent = '无法连接服务端';
+    } finally {
+      btn.disabled = false;
+      btn.textContent = '进入';
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', boot);
+</script>
+</body>
+</html>

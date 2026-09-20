@@ -1,0 +1,34 @@
+[Unit]
+Description=timeline-trace（理想 vs 实际时间线对照）
+Documentation=file:///opt/timeline-trace/README.md
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=timeline
+Group=timeline
+WorkingDirectory=/opt/timeline-trace
+
+# 口令从独立文件读取，避免出现在 systemctl show / ps 输出里
+EnvironmentFile=/etc/timeline-trace.env
+
+# 只监听回环，公网流量一律经 nginx 转发；uvicorn 不直接暴露
+ExecStart=/opt/timeline-trace/.venv/bin/uvicorn app.main:app \
+    --host 127.0.0.1 --port 8000 --proxy-headers --forwarded-allow-ips=127.0.0.1
+
+Restart=on-failure
+RestartSec=3
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=timeline-trace
+
+# 最低权限运行：数据库是唯一需要写入的路径
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/timeline-trace/data
+
+[Install]
+WantedBy=multi-user.target
