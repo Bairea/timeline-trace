@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>模板编辑 · 时间线对照</title>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">时间线对照 · 模板编辑</div>
+  <div class="actions">
+    <a href="/" class="ghost">← 回到对照</a>
+    <span id="dirtyHint" class="dirty-hint" hidden>改动会立即影响历史日报的对照结果</span>
+  </div>
+</header>
+
+<div class="editor-page">
+  <div class="editor-head">
+    <div class="editor-title">
+      <h1 id="tplName">加载中…</h1>
+      <p class="editor-desc" id="tplDesc"></p>
+    </div>
+    <button id="addBlock" class="primary">新增时间块</button>
+  </div>
+
+  <p class="editor-note">
+    模板是比对基准线。修改后<strong>历史日报的对照结果会按新模板重新计算</strong>——
+    这正是「比对结果不落库、查询时实时计算」的设计代价：改一次模板，全部历史都跟着变。
+  </p>
+
+  <div id="blockList" class="block-list"><div class="loading">加载中…</div></div>
+
+  <div class="cat-legend">
+    <span class="cat-legend-title">已用类别</span>
+    <span id="catChips"></span>
+  </div>
+</div>
+
+<div id="confirm" class="modal" hidden>
+  <div class="modal-box">
+    <h2 id="confirmTitle">确认删除</h2>
+    <p id="confirmText"></p>
+    <div class="modal-actions">
+      <button id="confirmCancel" class="ghost">取消</button>
+      <button id="confirmOk" class="danger">删除</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden>
+  <span id="toastText"></span>
+  <button id="toastClose">知道了</button>
+</div>
+
+<script src="/static/template.js"></script>
+</body>
+</html>
