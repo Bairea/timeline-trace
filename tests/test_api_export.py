@@ -169,6 +169,12 @@ def test_export_empty_range_still_valid(client):
 
 
 def test_stats_endpoint(client):
+    """项目推进时长按 category 统计，不再靠块名子串匹配。
+
+    夹具里同时有「08:30-12:20 工作」（230 分钟）与「20:30-21:10 干活」
+    （40 分钟），二者都落在模板的 category=项目推进 块内 → 270。
+    旧口径只认名字含「干活」的块，会漏掉 230 分钟的「工作」。
+    """
     _seed_day(client)
     r = client.get("/api/stats?start=2026-09-20&end=2026-09-20")
     assert r.status_code == 200
@@ -176,7 +182,21 @@ def test_stats_endpoint(client):
     assert len(body["daily"]) == 1
     metrics = dict(body["range"])
     assert metrics["days"] == 1
-    assert metrics["project_min_total"] == 40
+    assert metrics["project_min_total"] == 270
+
+
+def test_stats_excludes_unrelated_block_inside_template_span(client):
+    """模板块时段内做的别的事不应计入该模板块的 category。
+
+    夹具里「21:10-21:40 短视频」落在模板「干活 20:30-22:00」区间内，
+    但它不是项目推进。这是最容易让指标虚高的场景（干活时段摸鱼），
+    故单列一条断言守住。
+    """
+    _seed_day(client)
+    metrics = dict(client.get(
+        "/api/stats?start=2026-09-20&end=2026-09-20").json()["range"])
+    # 若短视频被误算，总量会是 300
+    assert metrics["project_min_total"] == 270
 
 
 def test_stats_requires_auth(tmp_path, monkeypatch):

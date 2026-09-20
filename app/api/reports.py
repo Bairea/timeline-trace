@@ -5,7 +5,9 @@ from fastapi import APIRouter, Depends, HTTPException, Response
 
 from app import db, repo
 from app.auth import require_session
+from app.classify import infer_category_map
 from app.compare import compare_day
+from app.config import load_thresholds
 from app.export import (export_csv, export_csv_actual, export_xlsx,
                         rows_actual, rows_template)
 from app.stats import daily_summary, range_stats
@@ -23,16 +25,24 @@ def _conn():
 
 
 def _compare_for(conn, date: str):
+    """取某日的模板块、对照结果、实际块，以及实际块的分类映射。
+
+    第 4 项（categories）是本次新增的：优先级四项的判定依赖实际块的
+    category，而实际块表没有这一列，故由 classify 从模板派生。
+    在这里一次算好往下传，避免 stats 反复查库。
+    """
     tpl = conn.execute(
         "SELECT * FROM templates WHERE is_default = 1 ORDER BY id LIMIT 1"
     ).fetchone()
     if not tpl:
         raise HTTPException(404, "没有默认模板")
 
-    tpl_blocks = repo.to_block_likes(repo.list_template_blocks(conn, tpl["id"]))
+    tpl_rows = repo.list_template_blocks(conn, tpl["id"])
+    tpl_blocks = repo.to_block_likes(tpl_rows)
     actual_rows = repo.list_actual(conn, date)
     act_blocks = repo.to_block_likes(actual_rows)
-    return tpl, compare_day(tpl_blocks, act_blocks), actual_rows
+    categories = infer_category_map(actual_rows, tpl_rows)
+    return tpl, compare_day(tpl_blocks, act_blocks), actual_rows, categories
 
 
 @router.get("/compare")
@@ -73,14 +83,18 @@ def _date_range(start: str, end: str) -> list[str]:
 
 @router.get("/stats")
 def stats(start: str, end: str, conn=Depends(_conn)):
+    thresholds = load_thresholds()
     days = []
     summaries = []
+    all_categories: dict[str, dict[int, str]] = {}
     for d in _date_range(start, end):
-        _, results, actual_rows = _compare_for(conn, d)
+        _, results, actual_rows, categories = _compare_for(conn, d)
         days.append({"date": d, "rows": results, "actual_rows": actual_rows})
+        all_categories[d] = categories
         summaries.append(daily_summary(d, results, actual_rows))
     return {"start": start, "end": end,
-            "daily": summaries, "range": range_stats(days)}
+            "daily": summaries,
+            "range": range_stats(days, thresholds, all_categories)}
 
 
 @router.get("/export")
@@ -99,12 +113,14 @@ def export(start: str, end: str, format: str = "csv", scope: str = "both",
     tpl_rows: list[list] = []
     summaries: list[list] = []
     days = []
+    all_categories: dict[str, dict[int, str]] = {}
     for d in _date_range(start, end):
-        _, results, actual_rows = _compare_for(conn, d)
+        _, results, actual_rows, categories = _compare_for(conn, d)
         act_rows.extend(rows_actual(d, results, actual_rows))
         tpl_rows.extend(rows_template(d, results))
         summaries.append(daily_summary(d, results, actual_rows))
         days.append({"date": d, "rows": results, "actual_rows": actual_rows})
+        all_categories[d] = categories
 
     if format == "csv":
         body = (export_csv_actual(act_rows) if scope == "actual"
@@ -116,7 +132,8 @@ def export(start: str, end: str, format: str = "csv", scope: str = "both",
                      f'attachment; filename="timeline_{start}_{end}.csv"'},
         )
 
-    body = export_xlsx(act_rows, tpl_rows, summaries, range_stats(days))
+    body = export_xlsx(act_rows, tpl_rows, summaries,
+                       range_stats(days, load_thresholds(), all_categories))
     return Response(
         content=body,
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
