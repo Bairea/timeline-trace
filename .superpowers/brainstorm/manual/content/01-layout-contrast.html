@@ -1,0 +1,83 @@
+<h2>核心界面：左右对照的样子</h2>
+<p class="subtitle">左边是理想模板（可复用的工作日），右边是你当天的真实时间线。整体判断一下：这个对照方向对不对？</p>
+
+<div class="mockup">
+  <div class="mockup-header">方案 A：逐块对照 + 状态灯（推荐）</div>
+  <div class="mockup-body">
+    <div style="display:flex;gap:14px;font-size:12px">
+
+      <div style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:8px;padding:10px">
+        <div style="font-size:11px;letter-spacing:.08em;color:#8b8b8b;margin-bottom:8px">理想 · 工作日模板</div>
+
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+          <span style="color:#6f6f6f;font-variant-numeric:tabular-nums;width:78px">06:30–07:00</span>
+          <span style="color:#ddd">早操</span>
+          <span style="margin-left:auto;color:#4cc38a">✓ 符合</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+          <span style="color:#6f6f6f;font-variant-numeric:tabular-nums;width:78px">07:00–07:15</span>
+          <span style="color:#ddd">洗漱</span>
+          <span style="margin-left:auto;color:#4cc38a">✓ 符合</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+          <span style="color:#6f6f6f;font-variant-numeric:tabular-nums;width:78px">12:00–12:45</span>
+          <span style="color:#ddd">午饭与午休</span>
+          <span style="margin-left:auto;color:#e5a13a">◐ 偏移</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+          <span style="color:#6f6f6f;font-variant-numeric:tabular-nums;width:78px">20:30–22:00</span>
+          <span style="color:#ddd">干活（中间拉伸）</span>
+          <span style="margin-left:auto;color:#e05c5c">✗ 未达标</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+          <span style="color:#6f6f6f;font-variant-numeric:tabular-nums;width:78px">22:00–22:20</span>
+          <span style="color:#ddd">洗澡</span>
+          <span style="margin-left:auto;color:#4cc38a">✓ 符合</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0">
+          <span style="color:#6f6f6f;font-variant-numeric:tabular-nums;width:78px">22:20–22:40</span>
+          <span style="color:#ddd">晚练</span>
+          <span style="margin-left:auto;color:#8b8b8b">— 未记录</span>
+        </div>
+      </div>
+
+      <div style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:8px;padding:10px">
+        <div style="font-size:11px;letter-spacing:.08em;color:#8b8b8b;margin-bottom:8px">实际 · 2026-09-20</div>
+
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+          <span style="color:#8b8b8b;font-variant-numeric:tabular-nums;width:78px">06:35–07:02</span>
+          <span style="color:#ddd">早操</span>
+          <span style="margin-left:auto;color:#4cc38a">自动对齐</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+          <span style="color:#8b8b8b;font-variant-numeric:tabular-nums;width:78px">07:02–07:20</span>
+          <span style="color:#ddd">洗漱</span>
+          <span style="margin-left:auto;color:#4cc38a">自动对齐</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+          <span style="color:#8b8b8b;font-variant-numeric:tabular-nums;width:78px">12:20–13:05</span>
+          <span style="color:#ddd">午饭（晚了20分钟）</span>
+          <span style="margin-left:auto;color:#e5a13a">偏 20min</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+          <span style="color:#8b8b8b;font-variant-numeric:tabular-nums;width:78px">20:30–21:10</span>
+          <span style="color:#ddd">干活（仅40分钟）</span>
+          <span style="margin-left:auto;color:#e05c5c">缺 50min</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.06)">
+          <span style="color:#8b8b8b;font-variant-numeric:tabular-nums;width:78px">21:10–21:30</span>
+          <span style="color:#ddd;background:rgba(229,161,58,.12);padding:1px 5px;border-radius:3px">短视频（新增·无对应）</span>
+          <span style="margin-left:auto;color:#e5a13a">计划外</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;padding:5px 0">
+          <span style="color:#8b8b8b;font-variant-numeric:tabular-nums;width:78px">22:00–22:20</span>
+          <span style="color:#ddd">洗澡</span>
+          <span style="margin-left:auto;color:#4cc38a">自动对齐</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:14px">关键点：左边每个块右侧有一个"✓ 符合"，点一下就把右边对应块标记为照做（时间允许小偏差，比如 ±15 分钟算对齐）。右边出现左边没有的块（比如刷短视频），就是"计划外"——那才是你真正想看见的信号。</p>

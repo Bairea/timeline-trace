@@ -16,6 +16,16 @@ python -m venv .venv
 .venv/bin/python -m pytest -q                  # macOS / Linux
 ```
 
+前端时间轴几何的纯逻辑断言（不依赖浏览器，直接跑 Node）：
+
+```bash
+node tests/js/geom.test.js
+```
+
+它覆盖各缩放倍率下的轴高、跨零点块高、以及「相对位置不随缩放改变」
+这条不变式——`state.zoom` 曾是倍率/像素两种语义混用的重灾区，这组
+断言就是为了把这个错误钉死。
+
 ## 运行
 
 ```bash

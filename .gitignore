@@ -1,9 +1,25 @@
-.superpowers/
+# ---------- 运行环境与构建产物（不入库）----------
+.venv/
 __pycache__/
 *.pyc
-data/*.db
-.venv/
-backups/
-.shots/
-samples/
 .pytest_cache/
+
+# ---------- 本地数据（含真实记录，不入库）----------
+# 注意：data/ 整目录不忽略，只忽略库文件本体。
+# 目录里若有 schema/迁移脚本等文本资产，应当被跟踪。
+data/*.db
+data/*.db-wal
+data/*.db-shm
+
+# ---------- 备份产物 ----------
+backups/
+
+# ---------- 临时/工具产出（不入库）----------
+# .shots/ 只放调试截图与一次性脚本。可复用的断言脚本已挪到 tests/js/，
+# 所以这里整目录忽略是安全的。
+.shots/
+.superpowers/brainstorm/manual/state/
+
+# ---------- 导出样例（不入库）----------
+# samples/ 是导出功能的实际产物，含真实记录内容，且可随时重新生成。
+samples/

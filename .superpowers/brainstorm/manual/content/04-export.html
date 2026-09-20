@@ -1,0 +1,47 @@
+<h2>再加一条硬需求：导出</h2>
+<p class="subtitle">"自动判定 + 精确导出每天每段的分配"——这句话把数据层的设计定死了。请确认导出的样子。</p>
+
+<div class="mockup">
+  <div class="mockup-header">导出预览：daily_blocks.csv / .xlsx</div>
+  <div class="mockup-body">
+    <div style="font-family:ui-monospace,Consolas,monospace;font-size:11px;line-height:1.9;color:#cfd8e6;background:rgba(0,0,0,0.3);border:1px solid rgba(255,255,255,0.1);border-radius:6px;padding:12px;overflow-x:auto;white-space:pre">date,start,end,duration_min,block_name,template_block,status,delta_start_min,delta_dur_min,is_planned
+2026-09-20,06:35,07:02,27,早操,早操,aligned,5,-3,false
+2026-09-20,07:02,07:20,18,洗漱,洗漱,aligned,2,3,false
+2026-09-20,07:20,07:30,10,早饭,早饭,aligned,0,0,false
+2026-09-20,07:35,08:30,55,通勤·听书,通勤·听书,aligned,0,0,false
+2026-09-20,08:30,12:20,230,工作,工作,aligned,0,20,false
+2026-09-20,12:20,13:05,45,午饭与午休,午饭与午休,offset,20,0,false
+2026-09-20,20:30,21:10,40,干活,干活,short,0,-50,false
+2026-09-20,21:10,21:30,20,短视频,,unplanned,,,true
+2026-09-20,22:00,22:20,20,洗澡,洗澡,aligned,0,0,false
+2026-09-20,22:20,22:40,20,晚练,晚练,unrecorded,,,false
+    </div>
+    <div style="font-size:11px;color:#8b8b8b;margin-top:10px;line-height:1.9">
+      · <code style="color:#cfd8e6">duration_min</code> 每段精确到分钟，求和即当日已记录总时长<br>
+      · <code style="color:#cfd8e6">status</code> ∈ aligned / offset / short / unplanned / unrecorded<br>
+      · <code style="color:#cfd8e6">delta_start_min</code> / <code style="color:#cfd8e6">delta_dur_min</code> 相对模板的偏差，可直接在 Excel 里做分析<br>
+      · <code style="color:#cfd8e6">template_block</code> 为空 = 计划外；留一列便于按类目透视
+    </div>
+  </div>
+</div>
+
+<div class="split" style="margin-top:14px">
+  <div class="mockup">
+    <div class="mockup-header">统计口径（同一份数据）</div>
+    <div class="mockup-body" style="font-size:12px;line-height:2;color:#b8b8b8">
+      <div>· <strong style="color:#e8e8e8">每日</strong>：各类目时长、计划外总时长、睡眠起止</div>
+      <div>· <strong style="color:#e8e8e8">区间</strong>：周/月聚合，看趋势</div>
+      <div>· <strong style="color:#e8e8e8">优先级四项</strong>：睡眠达标率、早操出勤、无绩效时段、项目推进时长</div>
+      <div style="color:#8b8b8b;margin-top:6px">这些是读同一份 block 数据算出来的视图，不是另存的表</div>
+    </div>
+  </div>
+  <div class="mockup">
+    <div class="mockup-header">导出格式</div>
+    <div class="mockup-body" style="font-size:12px;line-height:2;color:#b8b8b8">
+      <div>· <strong style="color:#e8e8e8">CSV</strong>（UTF-8 BOM，Excel 直接开）</div>
+      <div>· <strong style="color:#e8e8e8">XLSX</strong> 多 sheet：明细 / 日汇总 / 区间统计</div>
+      <div>· 按日期范围导出，支持"导出全部"</div>
+      <div style="color:#8b8b8b;margin-top:6px">本地留原始数据，网页只做读写与可视化</div>
+    </div>
+  </div>
+</div>

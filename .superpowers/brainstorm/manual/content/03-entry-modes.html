@@ -1,0 +1,59 @@
+<h2>B2 + 精确输入：记录方式长什么样</h2>
+<p class="subtitle">既然是电脑 + 白天随手记，核心交互应该是一个"随手一敲"的输入行。看看这个手感对不对。</p>
+
+<div class="mockup">
+  <div class="mockup-header">实际时间线的输入方式（三种入口，同一个结果）</div>
+  <div class="mockup-body">
+
+    <div style="background:rgba(76,195,138,0.06);border:1px solid rgba(76,195,138,0.25);border-radius:6px;padding:12px;margin-bottom:12px">
+      <div style="font-size:11px;color:#4cc38a;letter-spacing:.06em;margin-bottom:8px">入口 1 · 快速记录框（主用，键盘流）</div>
+      <div style="font-family:ui-monospace,Consolas,monospace;font-size:13px;background:rgba(0,0,0,0.28);border:1px solid rgba(255,255,255,0.12);border-radius:5px;padding:9px 11px;color:#e8e8e8">
+        20:30-21:10 干活<span style="color:#4cc38a">▊</span>
+      </div>
+      <div style="font-size:11px;color:#8b8b8b;margin-top:8px;line-height:1.8">
+        支持写法：<code style="color:#cfd8e6">20:30-21:10 干活</code> ／
+        <code style="color:#cfd8e6">20:30 干活</code>（自动接上一块，默认 30 分钟）／
+        <code style="color:#cfd8e6">20:30- 干活</code>（现在还开着，先挂着）<br>
+        块名默认从模板候选中补全，也可直接输入新名字 → 自动标记为<strong style="color:#e5a13a">计划外</strong>
+      </div>
+    </div>
+
+    <div style="display:flex;gap:12px;margin-bottom:12px">
+      <div style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:6px;padding:12px">
+        <div style="font-size:11px;color:#8b8b8b;letter-spacing:.06em;margin-bottom:8px">入口 2 · 拖动（补充微调）</div>
+        <div style="font-size:12px;color:#b8b8b8;line-height:1.9">
+          已生成的块可上下拖、拉边缘改长度<br>
+          拖出模板范围 → 自动转"计划外"<br>
+          键盘微调：选中块后 <code style="color:#cfd8e6">↑↓</code> 挪 5 分钟，<code style="color:#cfd8e6">Shift+↑↓</code> 挪 15 分钟
+        </div>
+      </div>
+      <div style="flex:1;background:rgba(255,255,255,0.03);border:1px solid rgba(255,255,255,0.09);border-radius:6px;padding:12px">
+        <div style="font-size:11px;color:#8b8b8b;letter-spacing:.06em;margin-bottom:8px">入口 3 · 时间轴空白处点选</div>
+        <div style="font-size:12px;color:#b8b8b8;line-height:1.9">
+          在 24h 轴的空白区间拖出矩形<br>
+          立即弹出迷你输入框填名字<br>
+          适合"不想打字、先框住再说"
+        </div>
+      </div>
+    </div>
+
+    <div style="background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:6px;padding:12px">
+      <div style="font-size:11px;color:#8b8b8b;letter-spacing:.06em;margin-bottom:10px">生成后的对照呈现</div>
+      <div style="display:flex;gap:16px;font-size:11px">
+        <div style="color:#4cc38a">● 命中模板（时间重叠 ≥ 60%）→ 显示"对齐 理想 20:30–22:00"，附时差</div>
+      </div>
+      <div style="display:flex;gap:16px;font-size:11px;margin-top:6px">
+        <div style="color:#e5a13a">● 部分重叠 / 时长不足 → 显示"缺 50min"</div>
+      </div>
+      <div style="display:flex;gap:16px;font-size:11px;margin-top:6px">
+        <div style="color:#e05c5c">● 模板中无对应 → 高亮为"计划外"，并统计当日计划外总时长</div>
+      </div>
+      <div style="display:flex;gap:16px;font-size:11px;margin-top:6px">
+        <div style="color:#8b8b8b">● 模板块在当天无任何重叠 → "未记录"（灰色，不计入未达标）</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:14px">关键点：命中/未命中的判定是<strong>时间重叠度自动算</strong>的，不用你手工勾选——你只管把真实发生的事敲进去，对照是算出来的。这也解决了上一条讨论的"偏移 vs 计划外"归属问题：同一时间段与模板有交集的算偏移，完全错开或无对应的算计划外。</p>

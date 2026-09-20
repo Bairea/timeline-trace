@@ -1,0 +1,84 @@
+<h2>改成拖时间条：两种做法</h2>
+<p class="subtitle">你的直觉是对的——时间块本质是"起止点"，拖动比填表自然。但拖有两种完全不同的手感，请选一个。</p>
+
+<div class="split">
+  <div class="mockup">
+    <div class="mockup-header">方案 B1：模板块吸附（推荐）</div>
+    <div class="mockup-body">
+      <p style="font-size:12px;color:#9a9a9a;margin:0 0 10px">一天 = 24h 垂直轴。左侧理想栏的画布上，把块上下拖动/拉边缘改长度；吸附到相邻块。</p>
+
+      <div style="position:relative;height:300px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:6px;overflow:hidden">
+        <div style="position:absolute;top:0;left:0;right:0;height:60px;background:rgba(78,140,255,0.18);border-left:3px solid #4e8cff">
+          <div style="font-size:11px;color:#cfd8e6;padding:5px 8px">早操 · 06:30–07:00</div>
+          <div style="font-size:10px;color:#7e8b9d;padding:0 8px">↕ 拖边缘改时长</div>
+        </div>
+        <div style="position:absolute;top:64px;left:0;right:0;height:34px;background:rgba(140,140,160,0.18);border-left:3px solid #8c8ca0">
+          <div style="font-size:11px;color:#cfd8e6;padding:5px 8px">洗漱 · 07:00–07:15</div>
+        </div>
+        <div style="position:absolute;top:102px;left:0;right:0;height:48px;background:rgba(140,140,160,0.14);border-left:3px solid #8c8ca0">
+          <div style="font-size:11px;color:#cfd8e6;padding:5px 8px">早饭 · 07:20–07:30</div>
+        </div>
+        <div style="position:absolute;top:154px;left:0;right:0;height:66px;background:rgba(76,195,138,0.14);border-left:3px solid #4cc38a">
+          <div style="font-size:11px;color:#cfd8e6;padding:5px 8px">通勤·听书 · 07:35–08:30</div>
+        </div>
+        <div style="position:absolute;top:224px;left:0;right:0;height:66px;background:rgba(229,161,58,0.16);border-left:3px solid #e5a13a">
+          <div style="font-size:11px;color:#cfd8e6;padding:5px 8px">工作 · 08:30–12:00</div>
+        </div>
+        <div style="position:absolute;top:294px;left:0;right:0;height:20px;background:rgba(255,255,255,0.05);border-left:3px dashed #5c5c5c">
+          <div style="font-size:10px;color:#7e8b9d;padding:2px 8px">＋ 拖到底部新增块</div>
+        </div>
+      </div>
+
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>优点</h4><ul style="font-size:11px">
+          <li>改模板像调音轨，直观</li>
+          <li>块永不重叠、不留空洞</li>
+          <li>一次配好，长期复用</li>
+        </ul></div>
+        <div class="cons"><h4>代价</h4><ul style="font-size:11px">
+          <li>要求界面做得较精细</li>
+          <li>"计划外"块需要单独入口</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="mockup">
+    <div class="mockup-header">方案 B2：两条轴都自由涂</div>
+    <div class="mockup-body">
+      <p style="font-size:12px;color:#9a9a9a;margin:0 0 10px">理想栏也是一张空白 24h 画布。每天在右边画块，画完与左边按时间重叠度自动比对。</p>
+
+      <div style="position:relative;height:300px;background:rgba(255,255,255,0.02);border:1px solid rgba(255,255,255,0.08);border-radius:6px;overflow:hidden">
+        <div style="position:absolute;top:0;left:0;right:0;height:60px;background:rgba(78,140,255,0.14);border-left:3px solid #4e8cff">
+          <div style="font-size:11px;color:#cfd8e6;padding:5px 8px">早操 · 06:30–07:00</div>
+        </div>
+        <div style="position:absolute;top:80px;left:0;right:0;height:55px;background:rgba(140,140,160,0.12);border-left:3px solid #8c8ca0">
+          <div style="font-size:11px;color:#cfd8e6;padding:5px 8px">洗漱 · 07:05–07:20</div>
+        </div>
+        <div style="position:absolute;top:150px;left:0;right:0;height:60px;background:rgba(76,195,138,0.12);border-left:3px solid #4cc38a">
+          <div style="font-size:11px;color:#cfd8e6;padding:5px 8px">通勤 · 07:35–08:35</div>
+        </div>
+        <div style="position:absolute;top:226px;left:0;right:0;height:34px;background:rgba(224,92,92,0.16);border-left:3px solid #e05c5c">
+          <div style="font-size:10px;color:#cfd8e6;padding:4px 8px">空缺 07:20–07:35</div>
+        </div>
+        <div style="position:absolute;top:266px;left:0;right:0;height:34px;background:rgba(224,92,92,0.16);border-left:3px solid #e05c5c">
+          <div style="font-size:10px;color:#cfd8e6;padding:4px 8px">空缺 08:35–09:00</div>
+        </div>
+      </div>
+
+      <div class="pros-cons" style="margin-top:10px">
+        <div class="pros"><h4>优点</h4><ul style="font-size:11px">
+          <li>自由度最高，无预设</li>
+          <li>空档自动暴露</li>
+        </ul></div>
+        <div class="cons"><h4>代价</h4><ul style="font-size:11px">
+          <li>每天手工画块，负担重</li>
+          <li>难以判断"是计划外还是偏移"</li>
+          <li>块一多就混乱</li>
+        </ul></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<p class="subtitle" style="margin-top:16px">我的建议是 <strong>B1 打底，B2 的能力只给"计划外"入口</strong>：日常照抄模板、勾选为主；只有出现模板里没有的事情（刷视频、临时加班）时才拖出一个新块。这样既省事，又能守住"计划外 = 偏差信号"这个语义。</p>
