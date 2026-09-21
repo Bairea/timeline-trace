@@ -76,6 +76,21 @@ def test_quick_record_echoes_raw_on_parse_error(auth_client):
     assert r.json()["raw"] == "这不是时间"
 
 
+def test_quick_record_unseparated_time_stays_in_name(auth_client):
+    """接口层回归：`08:30 20:30-21:30 干活` 不该变成 12 小时块。
+
+    原缺陷下这里会返回 start=510 end=1230 name='-21:30 干活'——
+    跨度 720 分钟远超正常记录，且用户写的内容被吃掉一半。
+    """
+    r = auth_client.post("/api/actual/quick",
+                         json={"date": "2026-09-20",
+                               "line": "08:30 20:30-21:30 干活"})
+    assert r.status_code == 200
+    b = r.json()
+    assert b["name"] == "20:30-21:30 干活", "名字不能被 '-21:30' 残片污染"
+    assert b["end_min"] - b["start_min"] == 30, "应为默认 30 分钟，不是 12 小时"
+
+
 def test_quick_record_open_range(auth_client):
     r = auth_client.post("/api/actual/quick",
                          json={"date": "2026-09-20", "line": "20:30- 干活"})
