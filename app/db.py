@@ -45,7 +45,11 @@ CREATE INDEX IF NOT EXISTS idx_actual_date
 def connect(db_path: Path | None = None) -> sqlite3.Connection:
     path = db_path or DB_PATH
     path.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(path)
+    # check_same_thread=False：FastAPI 把同步依赖的 __enter__/__exit__
+    # 丢进线程池，且不保证同一条连接进出同一个线程。每个请求独占一条
+    # 连接，不跨请求共享，所以关闭线程检查是安全的。默认 True 会在
+    # 首页并发加载时抛 ProgrammingError，理想轴因此空白。
+    conn = sqlite3.connect(path, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn

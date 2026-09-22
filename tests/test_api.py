@@ -1,7 +1,9 @@
+import asyncio
 import os
 import tempfile
 from pathlib import Path
 
+import httpx
 import pytest
 from fastapi.testclient import TestClient
 
@@ -145,3 +147,30 @@ def test_no_password_means_open_access(tmp_path, monkeypatch):
     from app.main import app
     with TestClient(app) as c:
         assert c.get("/api/actual?date=2026-09-20").status_code == 200
+
+
+def test_parallel_day_load_does_not_cross_sqlite_threads(client):
+    """首页同时拉模板、对照、实际块时，三个接口都必须成功。
+
+    理想轴依赖 /api/templates。BaseHTTPMiddleware 会把同步依赖的
+    进入和退出拆到不同线程；SQLite 默认禁止跨线程，于是连接在
+    close() 或 execute() 时抛 ProgrammingError，前端就画不出理想块。
+    """
+    from app.main import app
+
+    async def load():
+        transport = httpx.ASGITransport(app=app)
+        async with httpx.AsyncClient(transport=transport, base_url="http://test") as c:
+            r = await c.post("/api/login", json={"password": "testpw"})
+            assert r.status_code == 200
+            responses = await asyncio.gather(
+                c.get("/api/templates"),
+                c.get("/api/compare", params={"date": "2026-09-22"}),
+                c.get("/api/actual", params={"date": "2026-09-22"}),
+            )
+        return responses
+
+    responses = asyncio.run(load())
+    assert [r.status_code for r in responses] == [200, 200, 200]
+    assert responses[0].json()[0]["name"] == "工作日"
+    assert len(responses[1].json()["rows"]) == 18
