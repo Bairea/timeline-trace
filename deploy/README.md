@@ -28,11 +28,18 @@ sudo chown timeline:timeline /opt/timeline-trace
 
 ## 2. Python 环境
 
+依赖由 uv 管理（`pyproject.toml` + `uv.lock`）。按锁文件同步：`--no-dev` 跳过 pytest/httpx，`--frozen` 严格按锁文件装、不尝试更新。
+
 ```bash
+# 装 uv（一次性；旧版系统 pip 无 PEP 668 限制，若报 externally-managed 再改用官方安装脚本）
+sudo python3 -m pip install uv
+
 cd /opt/timeline-trace
-sudo -u timeline python3 -m venv .venv
-sudo -u timeline .venv/bin/pip install -r requirements.txt
+sudo -u timeline uv sync --frozen --no-dev
 ```
+
+> `.venv` 位置不变（`/opt/timeline-trace/.venv`），systemd 单元的 `ExecStart` 路径无需改动。
+> 系统自带 Python 低于 3.11 时，uv 会自动下载一个匹配的 Python，不用手动装。
 
 ## 3. 口令
 

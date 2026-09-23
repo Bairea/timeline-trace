@@ -4,16 +4,18 @@
 
 ## 环境
 
+依赖用 [uv](https://docs.astral.sh/uv/) 管理：`pyproject.toml` 声明依赖（运行时 + dev 组），`uv.lock` 锁定精确版本。
+
 ```bash
-python -m venv .venv
-.venv/Scripts/python.exe -m pip install -r requirements.txt   # Windows
+uv sync        # 创建/同步 .venv 并安装依赖（含 dev 组：pytest、httpx）
 ```
+
+服务器部署用 `uv sync --frozen --no-dev`，见 `deploy/README.md` §2。
 
 ## 测试
 
 ```bash
-.venv/Scripts/python.exe -m pytest -q          # Windows
-.venv/bin/python -m pytest -q                  # macOS / Linux
+uv run pytest -q
 ```
 
 前端有三组 Node 断言，都不依赖浏览器：
@@ -67,7 +69,7 @@ NODE_PATH="C:/Users/<你>/.workbuddy/binaries/node/workspace/node_modules" \
 ## 运行
 
 ```bash
-.venv/Scripts/python.exe -m uvicorn app.main:app --reload --port 8000
+uv run uvicorn app.main:app --reload --port 8000
 ```
 
 ## 页面
